@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
 <head>
 <title>PO Viewer</title>
@@ -75,5 +75,276 @@ if(json){
 
 </script>
 
+</body>
+</html> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PO Review</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #f5f4f0;
+    color: #1a1a1a;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .header-label {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .status-pill {
+    font-size: 11px;
+    color: #999;
+    background: #ebebeb;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 0 32px;
+    overflow: hidden;
+  }
+
+  .pane {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pane-label {
+    font-size: 11px;
+    color: #bbb;
+    letter-spacing: 0.04em;
+    padding: 14px 18px 10px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  iframe { flex: 1; border: none; width: 100%; }
+
+  .json-body { flex: 1; overflow: auto; padding: 18px; }
+  .json-body::-webkit-scrollbar { width: 4px; }
+  .json-body::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 4px; }
+
+  pre {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: #888;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .jk { color: #333; font-weight: 500; }
+  .js { color: #3a7d5c; }
+  .jn { color: #c07a2a; }
+  .jb { color: #6b7fcc; }
+
+  footer {
+    padding: 20px 32px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 24px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s;
+    letter-spacing: -0.01em;
+  }
+  .btn:hover { opacity: 0.8; }
+  .btn:active { transform: scale(0.97); }
+  .btn-deny { background: #f0f0f0; color: #666; }
+  .btn-approve { background: #1a1a1a; color: #fff; }
+
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.2);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s; z-index: 10;
+  }
+  .overlay.open { opacity: 1; pointer-events: all; }
+
+  .sheet {
+    background: #fff; border-radius: 20px; padding: 32px; width: 360px;
+    transform: translateY(12px);
+    transition: transform 0.25s cubic-bezier(0.34,1.4,0.64,1);
+  }
+  .overlay.open .sheet { transform: translateY(0); }
+
+  .sheet-emoji { font-size: 26px; margin-bottom: 16px; display: block; }
+  .sheet h3 { font-size: 15px; font-weight: 500; margin-bottom: 6px; letter-spacing: -0.02em; }
+  .sheet p { font-size: 13px; color: #999; line-height: 1.6; margin-bottom: 20px; }
+
+  textarea {
+    width: 100%; background: #f7f7f7; border: 1px solid #ebebeb;
+    border-radius: 10px; padding: 12px 14px;
+    font-family: 'Inter', sans-serif; font-size: 13px; color: #333;
+    resize: none; height: 80px; outline: none; margin-bottom: 20px;
+    transition: border-color 0.15s;
+  }
+  textarea:focus { border-color: #ccc; }
+  textarea::placeholder { color: #ccc; }
+
+  .sheet-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  .btn-cancel {
+    background: #f0f0f0; color: #888;
+    font-family: 'Inter', sans-serif; font-size: 13px;
+    padding: 9px 18px; border-radius: 9px; border: none; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-cancel:hover { opacity: 0.75; }
+
+  .btn-confirm {
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+    padding: 9px 18px; border-radius: 9px; border: none; cursor: pointer;
+    color: #fff; transition: opacity 0.15s;
+  }
+  .btn-confirm:hover { opacity: 0.85; }
+  .btn-confirm.approve { background: #1a1a1a; }
+  .btn-confirm.deny { background: #e05050; }
+
+  .toast {
+    position: fixed; bottom: 80px; left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: #1a1a1a; color: #fff;
+    font-size: 13px; padding: 10px 20px; border-radius: 30px;
+    opacity: 0; pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.34,1.4,0.64,1);
+    white-space: nowrap; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="header-label">Purchase Order</span>
+  <span class="status-pill" id="poTitle">Pending review</span>
+</header>
+
+<div class="main">
+  <div class="pane">
+    <div class="pane-label">Document</div>
+    <iframe id="pdfFrame" title="PO Document"></iframe>
+  </div>
+  <div class="pane">
+    <div class="pane-label">Extracted data</div>
+    <div class="json-body">
+      <pre id="jsonData"><span style="color:#ccc">No data.</span></pre>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <button class="btn btn-deny" onclick="open_('deny')">Deny</button>
+  <button class="btn btn-approve" onclick="open_('approve')">Approve</button>
+</footer>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <span class="sheet-emoji" id="sheetEmoji"></span>
+    <h3 id="sheetTitle"></h3>
+    <p id="sheetDesc"></p>
+    <textarea id="sheetNote"></textarea>
+    <div class="sheet-actions">
+      <button class="btn-cancel" onclick="close_()">Cancel</button>
+      <button class="btn-confirm" id="btnConfirm" onclick="confirm_()"></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const pdf = params.get("pdf");
+  if (pdf) document.getElementById("pdfFrame").src = pdf;
+
+  const json = params.get("json");
+  if (json) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(json));
+      document.getElementById("jsonData").innerHTML = highlight(JSON.stringify(parsed, null, 2));
+      const find = o => { for (const k in o||{}) { if (/po.?num|order.?id/i.test(k)) return o[k]; if (typeof o[k]==='object'){const r=find(o[k]);if(r)return r;} } };
+      const num = find(parsed);
+      if (num) document.getElementById("poTitle").textContent = `#${num}`;
+    } catch(e) { document.getElementById("jsonData").textContent = "Invalid JSON."; }
+  }
+
+  function highlight(s) {
+    return s.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
+      if (/^"/.test(m)) return /:$/.test(m) ? `<span class="jk">${m}</span>` : `<span class="js">${m}</span>`;
+      if (/true|false|null/.test(m)) return `<span class="jb">${m}</span>`;
+      return `<span class="jn">${m}</span>`;
+    });
+  }
+
+  let cur = null;
+
+  function open_(type) {
+    cur = type;
+    const a = type === 'approve';
+    document.getElementById("sheetEmoji").textContent = a ? '✓' : '×';
+    document.getElementById("sheetTitle").textContent = a ? 'Approve this PO?' : 'Deny this PO?';
+    document.getElementById("sheetDesc").textContent  = a ? 'Confirm approval. Add a note if needed.' : 'The requester will be notified. Add a reason if needed.';
+    document.getElementById("sheetNote").placeholder  = a ? 'Note (optional)...' : 'Reason (optional)...';
+    document.getElementById("sheetNote").value = '';
+    const btn = document.getElementById("btnConfirm");
+    btn.textContent = a ? 'Approve' : 'Deny';
+    btn.className = `btn-confirm ${type}`;
+    document.getElementById("overlay").classList.add("open");
+  }
+
+  function close_() {
+    document.getElementById("overlay").classList.remove("open");
+    cur = null;
+  }
+
+  function confirm_() {
+    const msg = cur === 'approve' ? 'PO approved' : 'PO denied';
+    close_();
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2800);
+  }
+
+  document.getElementById("overlay").addEventListener("click", e => { if (e.target === document.getElementById("overlay")) close_(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") close_(); });
+</script>
 </body>
 </html>
