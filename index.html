@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>PO Viewer</title>
+
+<style>
+body{
+  font-family: Arial;
+  margin:0;
+}
+
+.container{
+  display:flex;
+  height:100vh;
+}
+
+.left{
+  width:50%;
+  border-right:1px solid #ddd;
+}
+
+.right{
+  width:50%;
+  padding:20px;
+  overflow:auto;
+  background:#fafafa;
+}
+
+iframe{
+  width:100%;
+  height:100%;
+  border:none;
+}
+
+pre{
+  background:#111;
+  color:#0f0;
+  padding:15px;
+  overflow:auto;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="left">
+<iframe id="pdfFrame"></iframe>
+</div>
+
+<div class="right">
+<h2>JSON Extraction</h2>
+<pre id="jsonData"></pre>
+</div>
+
+</div>
+
+<script>
+
+const params = new URLSearchParams(window.location.search)
+
+const pdf = params.get("pdf")
+const json = params.get("json")
+
+if(pdf){
+ document.getElementById("pdfFrame").src = pdf
+}
+
+if(json){
+ const decoded = decodeURIComponent(json)
+ document.getElementById("jsonData").textContent =
+ JSON.stringify(JSON.parse(decoded),null,2)
+}
+
+</script>
+
+</body>
+</html>
