@@ -3,112 +3,109 @@
 <head>
 <title>PO Review Dashboard</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-
 <style>
 
 *{
-box-sizing:border-box;
+  box-sizing:border-box;
 }
 
 body{
-margin:0;
-font-family:Segoe UI, Arial;
-background:#f4f6f9;
+  margin:0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background:#f4f6f9;
 }
 
-/* HEADER */
+/* Header */
 
 .header{
-background:#1f2937;
-color:white;
-padding:15px 25px;
-font-size:20px;
-font-weight:600;
+  background:#1f2937;
+  color:white;
+  padding:15px 25px;
+  font-size:20px;
+  font-weight:600;
 }
 
-/* LAYOUT */
+/* Layout */
 
 .container{
-display:flex;
-height:calc(100vh - 60px);
+  display:flex;
+  height:calc(100vh - 60px);
 }
 
-/* PDF SIDE */
+/* Left side PDF */
 
 .left{
-width:50%;
-background:white;
-border-right:1px solid #ddd;
-overflow:auto;
+  width:50%;
+  border-right:1px solid #ddd;
+  background:white;
 }
 
-#pdfContainer{
-padding:20px;
+iframe{
+  width:100%;
+  height:100%;
+  border:none;
 }
 
-/* JSON PANEL */
+/* Right panel */
 
 .right{
-width:50%;
-padding:25px;
-overflow:auto;
+  width:50%;
+  padding:25px;
+  overflow:auto;
 }
+
+/* JSON box */
 
 .json-box{
-background:#0f172a;
-color:#22c55e;
-padding:20px;
-border-radius:8px;
-font-size:14px;
-white-space:pre-wrap;
+  background:#0f172a;
+  color:#22c55e;
+  padding:20px;
+  border-radius:8px;
+  margin-top:10px;
+  font-size:14px;
+  overflow:auto;
 }
 
-.json-value{
-cursor:pointer;
-padding:2px 4px;
-border-radius:4px;
-}
-
-.json-value:hover{
-background:#334155;
-}
-
-/* PDF TEXT LAYER */
-
-.textLayer span.highlight{
-background:yellow;
-}
-
-/* BUTTONS */
+/* Buttons */
 
 .actions{
-margin-top:20px;
-display:flex;
-gap:15px;
+  margin-top:25px;
+  display:flex;
+  gap:15px;
 }
 
 button{
-border:none;
-padding:12px 20px;
-border-radius:6px;
-cursor:pointer;
-font-weight:600;
+  border:none;
+  padding:12px 20px;
+  font-size:15px;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:600;
 }
 
 .approve{
-background:#22c55e;
-color:white;
+  background:#22c55e;
+  color:white;
+}
+
+.approve:hover{
+  background:#16a34a;
 }
 
 .deny{
-background:#ef4444;
-color:white;
+  background:#ef4444;
+  color:white;
 }
 
+.deny:hover{
+  background:#dc2626;
+}
+
+/* Status */
+
 .status{
-margin-top:15px;
-font-weight:600;
+  margin-top:15px;
+  font-weight:600;
 }
 
 </style>
@@ -116,21 +113,26 @@ font-weight:600;
 
 <body>
 
-<div class="header">PO Document Review</div>
+<div class="header">
+PO Document Review
+</div>
 
 <div class="container">
 
-<!-- PDF SIDE -->
+<!-- LEFT PANEL -->
 <div class="left">
-<div id="pdfContainer"></div>
+<iframe id="pdfFrame"></iframe>
 </div>
 
-<!-- JSON SIDE -->
+<!-- RIGHT PANEL -->
+
 <div class="right">
 
 <h2>Extracted JSON Data</h2>
 
-<div class="json-box" id="jsonData"></div>
+<div class="json-box">
+<pre id="jsonData"></pre>
+</div>
 
 <div class="actions">
 <button class="approve" onclick="approvePO()">Approve</button>
@@ -147,159 +149,34 @@ font-weight:600;
 
 const params = new URLSearchParams(window.location.search)
 
-const pdfURL = params.get("pdf")
-const jsonParam = params.get("json")
+const pdf = params.get("pdf")
+const json = params.get("json")
 
-let jsonData = {}
-
-if(jsonParam){
-jsonData = JSON.parse(decodeURIComponent(jsonParam))
-renderJSON(jsonData)
+if(pdf){
+  document.getElementById("pdfFrame").src = pdf
 }
 
-/* ---------- JSON RENDER ---------- */
-
-function renderJSON(obj){
-
-let html = ""
-
-Object.keys(obj).forEach(key => {
-
-let value = obj[key]
-
-html += `<div>
-<strong>${key}:</strong>
-<span class="json-value" onclick="highlightText('${value}')">${value}</span>
-</div>`
-
-})
-
-document.getElementById("jsonData").innerHTML = html
+if(json){
+  const decoded = decodeURIComponent(json)
+  document.getElementById("jsonData").textContent =
+  JSON.stringify(JSON.parse(decoded), null, 2)
 }
 
-/* ---------- PDF LOAD ---------- */
-
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
-
-async function loadPDF(url){
-
-const pdf = await pdfjsLib.getDocument(url).promise
-
-for(let pageNum=1; pageNum<=pdf.numPages; pageNum++){
-
-const page = await pdf.getPage(pageNum)
-
-const viewport = page.getViewport({scale:1.3})
-
-const canvas = document.createElement("canvas")
-const context = canvas.getContext("2d")
-
-canvas.height = viewport.height
-canvas.width = viewport.width
-
-const container = document.createElement("div")
-container.style.position="relative"
-
-container.appendChild(canvas)
-
-document.getElementById("pdfContainer").appendChild(container)
-
-await page.render({
-canvasContext:context,
-viewport:viewport
-}).promise
-
-/* TEXT LAYER */
-
-const textLayerDiv = document.createElement("div")
-textLayerDiv.className="textLayer"
-textLayerDiv.style.position="absolute"
-textLayerDiv.style.left=0
-textLayerDiv.style.top=0
-textLayerDiv.style.height=viewport.height+"px"
-textLayerDiv.style.width=viewport.width+"px"
-
-container.appendChild(textLayerDiv)
-
-const textContent = await page.getTextContent()
-
-pdfjsLib.renderTextLayer({
-textContent,
-container:textLayerDiv,
-viewport,
-textDivs:[]
-})
-
-}
-
-}
-
-/* ---------- TEXT HIGHLIGHT ---------- */
-
-function highlightText(text){
-
-clearHighlights()
-
-const spans = document.querySelectorAll(".textLayer span")
-
-spans.forEach(span => {
-
-if(span.textContent.includes(text)){
-span.classList.add("highlight")
-}
-
-})
-
-}
-
-/* ---------- CLEAR ---------- */
-
-function clearHighlights(){
-
-document.querySelectorAll(".highlight").forEach(el=>{
-el.classList.remove("highlight")
-})
-
-}
-
-/* ---------- PDF → JSON ---------- */
-
-document.addEventListener("mouseup", () => {
-
-const selected = window.getSelection().toString().trim()
-
-if(!selected) return
-
-const jsonValues = document.querySelectorAll(".json-value")
-
-jsonValues.forEach(el => {
-
-if(el.textContent.includes(selected)){
-el.style.background="yellow"
-}
-
-})
-
-})
-
-/* ---------- BUTTONS ---------- */
+/* Buttons */
 
 function approvePO(){
-document.getElementById("statusMsg").innerHTML="✅ PO Approved"
+  document.getElementById("statusMsg").innerHTML =
+  "✅ PO Approved"
 }
 
 function denyPO(){
-document.getElementById("statusMsg").innerHTML="❌ PO Denied"
-}
-
-/* ---------- START ---------- */
-
-if(pdfURL){
-loadPDF(pdfURL)
+  document.getElementById("statusMsg").innerHTML =
+  "❌ PO Denied"
 }
 
 </script>
 
 </body>
-</html>
+</html> 
+
+
