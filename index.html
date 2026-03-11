@@ -1,111 +1,130 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>PO Review Dashboard</title>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.js"></script>
 
 <style>
 
 *{
-  box-sizing:border-box;
+box-sizing:border-box;
 }
 
 body{
-  margin:0;
-  font-family: "Segoe UI", Arial, sans-serif;
-  background:#f4f6f9;
+margin:0;
+font-family:Segoe UI, Arial;
+background:#f4f6f9;
 }
 
 /* Header */
 
 .header{
-  background:#1f2937;
-  color:white;
-  padding:15px 25px;
-  font-size:20px;
-  font-weight:600;
+background:#1f2937;
+color:white;
+padding:15px 25px;
+font-size:20px;
+font-weight:600;
 }
 
 /* Layout */
 
 .container{
-  display:flex;
-  height:calc(100vh - 60px);
+display:flex;
+height:calc(100vh - 60px);
 }
 
-/* Left side PDF */
+/* LEFT PANEL */
 
 .left{
-  width:50%;
-  border-right:1px solid #ddd;
-  background:white;
+width:50%;
+border-right:1px solid #ddd;
+background:#999;
+overflow:auto;
 }
 
-iframe{
-  width:100%;
-  height:100%;
-  border:none;
+#pdfContainer{
+width:100%;
+height:100%;
+overflow:auto;
 }
 
-/* Right panel */
+.page{
+margin:auto;
+margin-bottom:10px;
+box-shadow:0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* RIGHT PANEL */
 
 .right{
-  width:50%;
-  padding:25px;
-  overflow:auto;
+width:50%;
+padding:25px;
+overflow:auto;
 }
 
 /* JSON box */
 
 .json-box{
-  background:#0f172a;
-  color:#22c55e;
-  padding:20px;
-  border-radius:8px;
-  margin-top:10px;
-  font-size:14px;
-  overflow:auto;
+background:#0f172a;
+color:#22c55e;
+padding:20px;
+border-radius:8px;
+margin-top:10px;
+font-size:14px;
+overflow:auto;
+max-height:60vh;
 }
 
 /* Buttons */
 
 .actions{
-  margin-top:25px;
-  display:flex;
-  gap:15px;
+margin-top:25px;
+display:flex;
+gap:15px;
 }
 
 button{
-  border:none;
-  padding:12px 20px;
-  font-size:15px;
-  border-radius:6px;
-  cursor:pointer;
-  font-weight:600;
+border:none;
+padding:12px 20px;
+font-size:15px;
+border-radius:6px;
+cursor:pointer;
+font-weight:600;
 }
 
 .approve{
-  background:#22c55e;
-  color:white;
+background:#22c55e;
+color:white;
 }
 
 .approve:hover{
-  background:#16a34a;
+background:#16a34a;
 }
 
 .deny{
-  background:#ef4444;
-  color:white;
+background:#ef4444;
+color:white;
 }
 
 .deny:hover{
-  background:#dc2626;
+background:#dc2626;
 }
 
 /* Status */
 
 .status{
-  margin-top:15px;
-  font-weight:600;
+margin-top:15px;
+font-weight:600;
+}
+
+.highlight{
+background:yellow;
+color:black;
 }
 
 </style>
@@ -119,12 +138,13 @@ PO Document Review
 
 <div class="container">
 
-<!-- LEFT PANEL -->
+<!-- LEFT SIDE PDF -->
+
 <div class="left">
-<iframe id="pdfFrame"></iframe>
+<div id="pdfContainer" class="pdfViewer"></div>
 </div>
 
-<!-- RIGHT PANEL -->
+<!-- RIGHT SIDE JSON -->
 
 <div class="right">
 
@@ -147,36 +167,121 @@ PO Document Review
 
 <script>
 
+/* -------------------------
+READ PARAMETERS FROM SLACK
+-------------------------- */
+
 const params = new URLSearchParams(window.location.search)
 
 const pdf = params.get("pdf")
 const json = params.get("json")
 
-if(pdf){
-  document.getElementById("pdfFrame").src = pdf
-}
+let parsedJSON = null
 
 if(json){
-  const decoded = decodeURIComponent(json)
-  document.getElementById("jsonData").textContent =
-  JSON.stringify(JSON.parse(decoded), null, 2)
+
+const decoded = decodeURIComponent(json)
+
+parsedJSON = JSON.parse(decoded)
+
+document.getElementById("jsonData").textContent =
+JSON.stringify(parsedJSON,null,2)
+
 }
 
-/* Buttons */
+/* -------------------------
+LOAD PDF USING PDF.JS
+-------------------------- */
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
+
+const container = document.getElementById("pdfContainer")
+
+const eventBus = new pdfjsViewer.EventBus()
+
+const pdfViewer = new pdfjsViewer.PDFViewer({
+container: container,
+eventBus: eventBus
+})
+
+const findController = new pdfjsViewer.PDFFindController({
+eventBus,
+pdfViewer
+})
+
+pdfViewer.setFindController(findController)
+
+if(pdf){
+
+pdfjsLib.getDocument(pdf).promise.then(function(doc){
+
+pdfViewer.setDocument(doc)
+findController.setDocument(doc)
+
+})
+
+}
+
+/* -------------------------
+SELECT JSON TEXT
+HIGHLIGHT JSON + PDF
+-------------------------- */
+
+document.getElementById("jsonData").addEventListener("mouseup",function(){
+
+const selectedText = window.getSelection().toString().trim()
+
+if(selectedText.length > 1){
+
+highlightJSON(selectedText)
+
+findController.executeCommand("find",{
+query:selectedText,
+highlightAll:true,
+caseSensitive:false
+})
+
+}
+
+})
+
+/* -------------------------
+HIGHLIGHT JSON
+-------------------------- */
+
+function highlightJSON(text){
+
+const jsonBox = document.getElementById("jsonData")
+
+const content = jsonBox.innerHTML
+
+const regex = new RegExp(text,"gi")
+
+jsonBox.innerHTML = content.replace(regex,
+`<span class="highlight">${text}</span>`)
+
+}
+
+/* -------------------------
+BUTTON ACTIONS
+-------------------------- */
 
 function approvePO(){
-  document.getElementById("statusMsg").innerHTML =
-  "✅ PO Approved"
+
+document.getElementById("statusMsg").innerHTML =
+"✅ PO Approved"
+
 }
 
 function denyPO(){
-  document.getElementById("statusMsg").innerHTML =
-  "❌ PO Denied"
+
+document.getElementById("statusMsg").innerHTML =
+"❌ PO Denied"
+
 }
 
 </script>
 
 </body>
-</html> 
-
-
+</html>
